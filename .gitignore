@@ -1,0 +1,11 @@
+# 编译产物
+/tdx
+/cmd/tdx/tdx
+*.exe
+*.test
+*.out
+
+# 编辑器/系统
+.DS_Store
+.idea/
+.vscode/
