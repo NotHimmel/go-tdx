@@ -90,3 +90,11 @@ type CompanyInfoCategory struct {
 	Start    uint32 `json:"start"`
 	Length   uint32 `json:"length"`
 }
+
+// TdxBlock 通达信板块（行业/地域/概念/风格）。
+type TdxBlock struct {
+	Name     string   `json:"name"`     // 板块名称
+	Category int      `json:"category"` // 0=行业/指数 1=地域 2=概念 3=风格
+	Count    int      `json:"count"`    // 成分股数量
+	Codes    []string `json:"codes"`    // 6 位代码列表
+}

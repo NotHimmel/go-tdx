@@ -250,6 +250,15 @@ func (c *Client) BlockInfoFile(filename string) ([]byte, error) {
 	return out, nil
 }
 
+// BlockList 下载并解析板块文件（如 block_gn.dat 概念 / block_zs.dat 行业指数）。
+func (c *Client) BlockList(filename string) ([]model.TdxBlock, error) {
+	data, err := c.BlockInfoFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	return codec.ParseBlockDat(data, filename), nil
+}
+
 // MarketStat 获取 A 股全市场涨跌统计概况（基于 880005/880001/880006）。
 func (c *Client) MarketStat() (model.MarketStat, error) {
 	quotes, err := c.SecurityQuotes([]command.Stock{
