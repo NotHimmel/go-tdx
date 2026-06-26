@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/NotHimmel/go-tdx/transport"
 )
 
 // Pool 是 Client 连接池：多 goroutine（如 web 多请求）共享有限连接。
@@ -71,13 +73,41 @@ func (p *Pool) Release(c *Client) {
 }
 
 // Do 取连接执行 fn 并自动归还。web handler 的推荐入口。
+// fn 出错时认为连接可能失效，重连（必要时切换服务器）并重试一次，
+// 避免 TDX 丢弃空闲连接/网络抖动后池内死连接导致持续「拉不到数据」。
 func (p *Pool) Do(ctx context.Context, fn func(*Client) error) error {
 	c, err := p.Acquire(ctx)
 	if err != nil {
 		return err
 	}
-	defer p.Release(c)
-	return fn(c)
+	err = fn(c)
+	if err != nil {
+		if nc, e := p.reconnect(); e == nil {
+			c.Close()
+			c = nc
+			err = fn(c) // 用新连接重试一次（读操作幂等）
+		}
+	}
+	p.Release(c)
+	return err
+}
+
+// reconnect 重建一条连接：先连原服务器，失败则重选最优服务器（故障转移）。
+func (p *Pool) reconnect() (*Client, error) {
+	p.mu.Lock()
+	host := p.host
+	p.mu.Unlock()
+	if c, err := NewWithTimeout(host, p.timeout); err == nil {
+		return c, nil
+	}
+	nh := transport.BestHost(nil, transport.DefaultPort, 3*time.Second)
+	if nh == "" {
+		return nil, fmt.Errorf("无可达 TDX 服务器")
+	}
+	p.mu.Lock()
+	p.host = nh
+	p.mu.Unlock()
+	return NewWithTimeout(nh, p.timeout)
 }
 
 // Close 关闭池内所有连接。
