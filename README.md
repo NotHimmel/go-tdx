@@ -11,7 +11,7 @@
 | codec: price/volume/datetime/frame/gbk | ✅ | fixture 字节级 parity |
 | codec: price_rules（涨跌停规则） | ✅ | 单元测试 7 例 |
 | transport: 连接/握手/帧/ping/best-host | ✅ | 真实服务器验证 |
-| 连接池 `tdx.Pool`（Acquire/Release/Do） | ✅ | 多 goroutine 共享 + 限流 |
+| 连接池 `tdx.Pool`（Acquire/Release/Do） | ✅ | 多 goroutine 共享 + 限流；多主机分摊、懒重建、可选 keepalive |
 | command（全 13 条 A股命令） | ✅ | 12 fixture parity 全过 |
 | facade `tdx.Client`（高层 API） | ✅ | live 验证全部方法 |
 | model（typed struct，JSON 友好） | ✅ | |
@@ -24,9 +24,14 @@ HistoryFundFlow / BlockInfoMeta / BlockInfoFile / ReportFile / MarketStat。
 
 live 验证：ping→握手→拉真实行情/财务/除权/市场统计/涨跌停，全部正确。
 
+## 连接池
+
+- `NewPool("", size, timeout)`：自动 ping 候选服务器，取延迟最低的至多 3 台轮转分摊，聚合吞吐随服务器数提升；`host` 支持 `"1.2.3.4"` 或 `"1.2.3.4:7709"`。
+- `NewPoolWith(host, size, timeout, tdx.WithHosts(...), tdx.WithKeepalive(60*time.Second))`：显式候选列表 / 空闲心跳（对冲服务器掐空闲连接）。
+- `Do(ctx, fn)` 仅在传输层错误（`*transport.CommError`，连接不可信）时弃用连接、重拨并重试一次；业务/解析错误原样返回。死连接不回池，由下次 Acquire 懒重建。
+
 ## 待办（已超出"库"范围）
 
-- 心跳保活（长连接空闲）。
 - security_list 行业关联（tdxhy.cfg 解析）—— 按需。
 - offline .dat 本地读取 —— 按 UI 需求。
 - web 层 / 前端 → 见 `../go-tdx-web`。
