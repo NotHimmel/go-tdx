@@ -63,30 +63,35 @@ func (c *Conn) Close() error {
 
 // Execute 发送请求，接收并解压响应，返回解压后的 body。
 // 调用方用 cmd.ParseResponse(body) 解析。
+// 传输层失败返回 *CommError，此时连接状态不可信，应弃用重拨。
 func (c *Conn) Execute(request []byte) ([]byte, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.sock == nil {
-		return nil, fmt.Errorf("未连接，请先调用 Connect()")
+		return nil, &CommError{Op: "not-connected"}
 	}
 	c.sock.SetDeadline(time.Now().Add(c.Timeout))
 
 	if _, err := c.sock.Write(request); err != nil {
-		return nil, fmt.Errorf("通信错误(write): %w", err)
+		return nil, &CommError{Op: "write", Err: err}
 	}
 	headerBuf, err := c.recvExact(codec.HeaderSize)
 	if err != nil {
-		return nil, fmt.Errorf("通信错误(header): %w", err)
+		return nil, &CommError{Op: "read-header", Err: err}
 	}
 	header, err := codec.ParseHeader(headerBuf)
 	if err != nil {
-		return nil, err
+		return nil, &CommError{Op: "read-header", Err: err}
 	}
 	rawBody, err := c.recvExact(int(header.ZipSize))
 	if err != nil {
-		return nil, fmt.Errorf("通信错误(body): %w", err)
+		return nil, &CommError{Op: "read-body", Err: err}
 	}
-	return codec.DecompressBody(header, rawBody)
+	body, err := codec.DecompressBody(header, rawBody)
+	if err != nil {
+		return nil, &CommError{Op: "decompress", Err: err}
+	}
+	return body, nil
 }
 
 func (c *Conn) sendSetup() error {
