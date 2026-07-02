@@ -8,6 +8,8 @@ package tdx
 
 import (
 	"fmt"
+	"net"
+	"strconv"
 	"time"
 
 	"github.com/NotHimmel/go-tdx/codec"
@@ -26,7 +28,8 @@ func New(host string) (*Client, error) {
 	return NewWithTimeout(host, 8*time.Second)
 }
 
-// NewWithTimeout 同 New，可指定超时。
+// NewWithTimeout 同 New，可指定超时。host 支持 "1.2.3.4" 或 "1.2.3.4:7709"，
+// 未带端口时用 transport.DefaultPort。
 func NewWithTimeout(host string, timeout time.Duration) (*Client, error) {
 	if host == "" {
 		host = transport.BestHost(nil, transport.DefaultPort, 3*time.Second)
@@ -34,7 +37,13 @@ func NewWithTimeout(host string, timeout time.Duration) (*Client, error) {
 			return nil, fmt.Errorf("无可达服务器")
 		}
 	}
-	conn := transport.NewConn(host, transport.DefaultPort, timeout)
+	port := transport.DefaultPort
+	if h, p, err := net.SplitHostPort(host); err == nil {
+		if n, e := strconv.Atoi(p); e == nil && n > 0 {
+			host, port = h, n
+		}
+	}
+	conn := transport.NewConn(host, port, timeout)
 	if err := conn.Connect(); err != nil {
 		return nil, err
 	}
