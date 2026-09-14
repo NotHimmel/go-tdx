@@ -18,7 +18,7 @@ type Response struct {
 	Delay     time.Duration // 应答前延迟
 }
 
-// Server 进程内 fake TDX 服务器。每连接前 3 条请求视为握手，自动回空帧。
+// Server 进程内 fake TDX 服务器。每连接首条请求视为 Hello1 握手，自动回空帧。
 type Server struct {
 	ln       net.Listener
 	handler  func(req []byte) Response
@@ -64,15 +64,15 @@ func (s *Server) acceptLoop() {
 func (s *Server) serve(c net.Conn) {
 	defer c.Close()
 	buf := make([]byte, 4096)
-	setup := 0
+	setup := false
 	for {
 		n, err := c.Read(buf)
 		if err != nil {
 			return
 		}
 		req := append([]byte(nil), buf[:n]...)
-		if setup < 3 { // Connect() 的 3 条握手命令
-			setup++
+		if !setup { // Connect() 的 Hello1 握手
+			setup = true
 			writeFrame(c, req, nil)
 			continue
 		}

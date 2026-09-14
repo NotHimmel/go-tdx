@@ -2,8 +2,10 @@ package command
 
 import "encoding/hex"
 
-// SetupCommands 握手命令原始字节（pytdx 移植，真实服务器验证）。
-// 连接建立后必须按序发送，每条均需读取并丢弃响应。
+// SetupCommands 是标准行情服务器的 Hello1 握手。
+//
+// 2026-07 起，公共服务器仍接受 Hello1，但在客户端继续发送旧版 Setup2/Setup3
+// 后会对行情请求返回只有 count 字段的空包。连接建立后只发送 Hello1。
 var SetupCommands = func() [][]byte {
 	must := func(s string) []byte {
 		b, err := hex.DecodeString(s)
@@ -14,7 +16,5 @@ var SetupCommands = func() [][]byte {
 	}
 	return [][]byte{
 		must("0c0218930001030003000d0001"),
-		must("0c0218940001030003000d0002"),
-		must("0c031899000120002000db0fd5d0c9ccd6a4a8af0000008fc22540130000d500c9ccbdf0d7ea00000002"),
 	}
 }()

@@ -24,6 +24,15 @@ HistoryFundFlow / BlockInfoMeta / BlockInfoFile / ReportFile / MarketStat。
 
 live 验证：ping→握手→拉真实行情/财务/除权/市场统计/涨跌停，全部正确。
 
+真实公网握手回归测试默认跳过；发布前运行：
+
+```bash
+TDX_LIVE=1 go test . -run TestLiveHello1SecurityBars -v
+```
+
+可用 `TDX_LIVE_HOST=IP` 覆盖默认测试节点。标准行情连接只发送 Hello1；旧版
+Setup2/Setup3 会使 2026-07 之后的公共服务器返回仅含 count 的空行情包。
+
 ## 连接池
 
 - `NewPool("", size, timeout)`：自动 ping 候选服务器，取延迟最低的至多 3 台轮转分摊，聚合吞吐随服务器数提升；`host` 支持 `"1.2.3.4"` 或 `"1.2.3.4:7709"`。
